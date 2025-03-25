@@ -170,24 +170,33 @@ func (aa *AccountAddress) ParseStringRelaxed(x string) error {
 	return nil
 }
 
-func (aa *AccountAddress) ParseStringRelaxed2(x string) error {
+// ParseStringWithPrefixRelaxed parses a string into an AccountAddress
+func (aa *AccountAddress) ParseStringWithPrefixRelaxed(x string) error {
 	if strings.HasPrefix(x, "0x") {
 		x = x[2:]
+		if len(x) < 1 {
+			return ErrAddressTooShort
+		}
+		if len(x) > 64 {
+			return ErrAddressTooLong
+		}
+		if len(x)%2 != 0 {
+			x = "0" + x
+		}
+		bytes, err := hex.DecodeString(x)
+		if err != nil {
+			return err
+		}
+		// zero-prefix/right-align what bytes we got
+		copy((*aa)[32-len(bytes):], bytes)
+	} else {
+		if len(x) < 30 {
+			return ErrAddressTooShort
+		}
+
+		base58Bytes := base58.Decode(x)
+		copy((*aa)[:], base58Bytes)
 	}
-	if len(x) < 1 {
-		return ErrAddressTooShort
-	}
-	if len(x) > 64 {
-		return ErrAddressTooLong
-	}
-	if len(x)%2 != 0 {
-		x = "0" + x
-	}
-	bytes, err := hex.DecodeString(x)
-	if err != nil {
-		return err
-	}
-	// zero-prefix/right-align what bytes we got
-	copy((*aa)[32-len(bytes):], bytes)
+
 	return nil
 }

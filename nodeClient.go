@@ -186,6 +186,32 @@ func (rc *NodeClient) AccountResourcesBCS(address AccountAddress, ledgerVersion 
 	return
 }
 
+// AccountModule fetches a single account module's bytecode and ABI from on-chain state.
+func (rc *NodeClient) AccountModule(address AccountAddress, moduleName string, ledgerVersion ...uint64) (*api.MoveBytecode, error) {
+	au := rc.baseUrl.JoinPath("accounts", address.String(), "module", moduleName)
+	if len(ledgerVersion) > 0 {
+		params := url.Values{}
+		params.Set("ledger_version", strconv.FormatUint(ledgerVersion[0], 10))
+		au.RawQuery = params.Encode()
+	}
+	data, err := Get[*api.MoveBytecode](rc, au.String())
+	if err != nil {
+		return nil, fmt.Errorf("get module api err: %w", err)
+	}
+	return data, nil
+}
+
+// EntryFunctionWithArgs generates an EntryFunction from on-chain Module ABI, and converts simple inputs to BCS encoded ones.
+func (rc *NodeClient) EntryFunctionWithArgs(moduleAddress AccountAddress, moduleName string, functionName string, typeArgs []any, args []any) (*EntryFunction, error) {
+	// TODO: This should be cached / we should be able to take in an ABI
+	module, err := rc.AccountModule(moduleAddress, moduleName)
+	if err != nil {
+		return nil, err
+	}
+
+	return EntryFunctionFromAbi(module.Abi, moduleAddress, moduleName, functionName, typeArgs, args)
+}
+
 // TransactionByHash gets info on a transaction
 // The transaction may be pending or recently committed.  If the transaction is a [api.PendingTransaction], then it is
 // still in the mempool.  If the transaction is any other type, it has been committed.

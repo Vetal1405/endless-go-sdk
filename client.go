@@ -113,6 +113,12 @@ type EndlessRpcClient interface {
 	// AccountResourcesBCS fetches account resources as raw Move struct BCS blobs in AccountResourceRecord.Data []byte
 	AccountResourcesBCS(address AccountAddress, ledgerVersion ...uint64) (resources []AccountResourceRecord, err error)
 
+	// AccountModule fetches a single account module's bytecode and ABI from on-chain state.
+	AccountModule(address AccountAddress, moduleName string, ledgerVersion ...uint64) (*api.MoveBytecode, error)
+
+	// EntryFunctionWithArgs generates an EntryFunction from on-chain Module ABI, and converts simple inputs to BCS encoded ones.
+	EntryFunctionWithArgs(moduleAddress AccountAddress, moduleName string, functionName string, typeArgs []any, args []any) (*EntryFunction, error)
+
 	// BlockByHeight fetches a block by height
 	//
 	//	block, _ := client.BlockByHeight(1, false)
@@ -761,4 +767,12 @@ func (client *Client) AccountCoinBalance(coinAddress string, address AccountAddr
 // NodeAPIHealthCheck checks if the node is within durationSecs of the current time, if not provided the node default is used
 func (client *Client) NodeAPIHealthCheck(durationSecs ...uint64) (api.HealthCheckResponse, error) {
 	return client.nodeClient.NodeHealthCheck(durationSecs...)
+}
+
+func (client *Client) AccountModule(address AccountAddress, moduleName string, ledgerVersion ...uint64) (*api.MoveBytecode, error) {
+	return client.nodeClient.AccountModule(address, moduleName, ledgerVersion...)
+}
+
+func (client *Client) EntryFunctionWithArgs(address AccountAddress, moduleName string, functionName string, typeArgs []any, args []any) (*EntryFunction, error) {
+	return client.nodeClient.EntryFunctionWithArgs(address, moduleName, functionName, typeArgs, args)
 }
