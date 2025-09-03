@@ -539,6 +539,21 @@ func (client *Client) TransactionByVersion(version uint64) (data *api.CommittedT
 	return client.nodeClient.TransactionByVersion(version)
 }
 
+// TransactionsByVersions gets info on some transaction from its LedgerVersion.  It must have been
+// committed to have a ledger version
+//
+//	data, err := client.TransactionByVersion("[]{uint64}")
+//	if err != nil {
+//		if httpErr, ok := err.(endless.HttpError) {
+//			if httpErr.StatusCode == 404 {
+//				// if we're sure this has been submitted, the full node might not be caught up to this version yet
+//			}
+//		}
+//	}
+func (client *Client) TransactionsByVersions(version []uint64, prune bool) (data []*api.CommittedTransaction, err error) {
+	return client.nodeClient.TransactionsByVersions(version, prune)
+}
+
 // PollForTransactions Waits up to 10 seconds for transactions to be done, polling at 10Hz
 // Accepts options PollPeriod and PollTimeout which should wrap time.Duration values.
 //

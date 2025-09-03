@@ -32,6 +32,9 @@ const (
 // ContentTypeEndlessSignedTxnBcs header for sending BCS transaction payloads
 const ContentTypeEndlessSignedTxnBcs = "application/x.endless.signed_transaction+bcs"
 const ContentTypeEndlessViewFunctionBcs = "application/x.endless.view_function+bcs"
+const ContentTypeApplicationJson = "application/json"
+
+const ContentAcceptType = "application/json,application/x-bcs"
 
 // NodeClient is a client for interacting with an EndlessCoin nodE API
 type NodeClient struct {
@@ -242,6 +245,25 @@ func (rc *NodeClient) TransactionByHash(txnHash string) (data *api.Transaction, 
 func (rc *NodeClient) TransactionByVersion(version uint64) (data *api.CommittedTransaction, err error) {
 	restUrl := rc.baseUrl.JoinPath("transactions/by_version", strconv.FormatUint(version, 10))
 	data, err = Get[*api.CommittedTransaction](rc, restUrl.String())
+	if err != nil {
+		return data, fmt.Errorf("get transaction api err: %w", err)
+	}
+	return data, nil
+}
+
+// TransactionsByVersions gets info on some transaction by version numbers
+// The transaction will have been committed.  The response will not be of the type [[]api.PendingTransaction].
+func (rc *NodeClient) TransactionsByVersions(version []uint64, prune bool) (data []*api.CommittedTransaction, err error) {
+	restUrl := rc.baseUrl.JoinPath("transactions/by_version")
+	params := url.Values{}
+	if prune {
+		params.Set("prune", "true")
+	}
+	restUrl.RawQuery = params.Encode()
+
+	jsonBytes, _ := json.Marshal(version)
+	bodyReader := bytes.NewReader(jsonBytes)
+	data, err = PostAccept[[]*api.CommittedTransaction](rc, restUrl.String(), ContentAcceptType, ContentTypeApplicationJson, bodyReader)
 	if err != nil {
 		return data, fmt.Errorf("get transaction api err: %w", err)
 	}
@@ -1254,6 +1276,43 @@ func Post[T any](rc *NodeClient, postUrl string, contentType string, body io.Rea
 	_ = response.Body.Close()
 
 	//log.Printf("Post string(blob)=%v \n",string(blob))
+
+	err = json.Unmarshal(blob, &data)
+	return data, err
+}
+
+func PostAccept[T any](rc *NodeClient, postUrl string, AcceptType string, contentType string, body io.Reader) (data T, err error) {
+	if body == nil {
+		body = http.NoBody
+	}
+	req, err := http.NewRequest("POST", postUrl, body)
+	if err != nil {
+		return data, err
+	}
+	req.Header.Set("Accept", AcceptType)
+	req.Header.Set("Content-Type", contentType)
+	req.Header.Set(ClientHeader, ClientHeaderValue)
+
+	// Set all preset headers
+	for key, value := range rc.headers {
+		req.Header.Set(key, value)
+	}
+
+	response, err := rc.client.Do(req)
+	if err != nil {
+		err = fmt.Errorf("POST %s, %w", postUrl, err)
+		return data, err
+	}
+	if response.StatusCode >= 400 {
+		err = NewHttpError(response)
+		return data, err
+	}
+	blob, err := io.ReadAll(response.Body)
+	if err != nil {
+		err = fmt.Errorf("error getting response data, %w", err)
+		return data, err
+	}
+	_ = response.Body.Close()
 
 	err = json.Unmarshal(blob, &data)
 	return data, err
