@@ -3,6 +3,7 @@ package endless
 import (
 	"errors"
 	"fmt"
+
 	"github.com/endless-labs/endless-go-sdk/bcs"
 )
 
@@ -53,6 +54,8 @@ func (txn *TransactionPayload) UnmarshalBCS(des *bcs.Deserializer) {
 		txn.Payload = &EntryFunction{}
 	case TransactionPayloadVariantMultisig:
 		txn.Payload = &Multisig{}
+	case TransactionPayloadVariantSafeEntryFunction:
+		txn.Payload = &SafeEntryFunction{}
 	default:
 		des.SetError(fmt.Errorf("bad txn payload kind, %d", payloadType))
 		return
@@ -156,9 +159,7 @@ func (sf *SafeEntryFunction) UnmarshalBCS(des *bcs.Deserializer) {
 	for i := range alen {
 		sf.Args[i] = des.ReadBytes()
 	}
-	for i, value := range des.ReadBytes() {
-		sf.Hash[i] = value
-	}
+	sf.Hash = [32]byte(des.ReadFixedBytes(32))
 }
 
 //region Multisig
